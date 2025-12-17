@@ -8,6 +8,9 @@ import { HomePageFixed } from './pages/HomePageFixed'
 import { AuthPageFixed } from './pages/AuthPageFixed'
 import { DashboardPageFixed } from './pages/DashboardPageFixed'
 import { PredictionPageFixed } from './pages/PredictionPageFixed'
+import { MusicPageFixed } from './pages/MusicPageFixed'
+import { ProfilePageFixed } from './pages/ProfilePageFixed'
+import { HistoryPageFixed } from './pages/HistoryPageFixed'
 
 // Components
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
@@ -32,6 +35,10 @@ function App() {
             <Route path="/auth" element={<AuthPageFixed />} />
             <Route path="/app" element={<DashboardPageFixed />} />
             <Route path="/app/prediction" element={<PredictionPageFixed />} />
+            <Route path="/app/music" element={<MusicPageFixed />} />
+            <Route path="/app/profile" element={<ProfilePageFixed />} />
+            <Route path="/app/history" element={<HistoryPageFixed />} />
+            <Route path="/app/history" element={<HistoryPageFixed />} />
           </Routes>
         </Suspense>
       </Router>

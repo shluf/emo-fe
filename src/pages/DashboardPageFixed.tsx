@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Brain, Music, TrendingUp, LogOut, Users } from 'lucide-react'
@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
 import { LanguageToggle } from '../components/ui/LanguageToggle'
+import { FloatingMusicPlayer } from '../components/ui/FloatingMusicPlayer'
 import { useTranslation } from '../utils/translations'
 import api from '../lib/api'
 
@@ -32,6 +33,7 @@ interface UserStats {
 export const DashboardPageFixed = memo(() => {
   const { user, logout } = useAuthStore()
   const { t } = useTranslation()
+  const [showMusicPlayer, setShowMusicPlayer] = useState(false)
 
   // Fetch prediction history
   const { data: predictionHistory, isLoading: historyLoading } = useQuery({
@@ -87,7 +89,7 @@ export const DashboardPageFixed = memo(() => {
             <div className="flex items-center space-x-4">
               <ThemeToggle />
               <LanguageToggle />
-              <div className="flex items-center space-x-3">
+              <Link to="/app/profile" className="flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-secondary-700 rounded-lg p-2 transition-colors">
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -101,7 +103,7 @@ export const DashboardPageFixed = memo(() => {
                     {user?.email || 'user@example.com'}
                   </p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={logout}
                 className="flex items-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -185,9 +187,9 @@ export const DashboardPageFixed = memo(() => {
         {/* Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Predictions */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Recent Mood Analysis
+          <div className="bg-white dark:bg-secondary-800 rounded-lg p-6 shadow-sm border border-secondary-200 dark:border-secondary-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {t('recentMoodAnalysis')}
             </h3>
             {historyLoading ? (
               <div className="flex justify-center py-8">
@@ -196,20 +198,20 @@ export const DashboardPageFixed = memo(() => {
             ) : stats.recentPredictions.length > 0 ? (
               <div className="space-y-3">
                 {stats.recentPredictions.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-secondary-700 rounded-lg">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900 capitalize">{item.prediction}</p>
-                      <p className="text-sm text-gray-600 truncate max-w-xs">
+                      <p className="font-medium text-gray-900 dark:text-white capitalize">{item.prediction}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs">
                         "{item.input_text}"
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(item.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     {item.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {item.tags.slice(0, 2).map((tag) => (
-                          <span key={tag.id} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                          <span key={tag.id} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs rounded-full">
                             {tag.tag_name}
                           </span>
                         ))}
@@ -219,18 +221,18 @@ export const DashboardPageFixed = memo(() => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Brain className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No mood analysis yet</p>
-                <p className="text-sm">Start by analyzing your first mood!</p>
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Brain className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p>{t('noMoodAnalysis')}</p>
+                <p className="text-sm">{t('startAnalyzing')}</p>
               </div>
             )}
           </div>
 
           {/* Available Music */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Available Music
+          <div className="bg-white dark:bg-secondary-800 rounded-lg p-6 shadow-sm border border-secondary-200 dark:border-secondary-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {t('availableMusic')}
             </h3>
             {musicLoading ? (
               <div className="flex justify-center py-8">
@@ -239,29 +241,39 @@ export const DashboardPageFixed = memo(() => {
             ) : musicList && musicList.length > 0 ? (
               <div className="space-y-3">
                 {musicList.slice(0, 5).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-secondary-700 rounded-lg">
                     <div>
-                      <p className="font-medium text-gray-900">{item.title}</p>
-                      <p className="text-sm text-gray-600">{item.artist}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{item.title}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{item.artist}</p>
                     </div>
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                      {item.genre || 'Music'}
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-xs rounded-full">
+                      {item.genre || t('music')}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Music className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No music available</p>
-                <p className="text-sm">Upload some music to get started!</p>
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Music className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p>{t('noMusicAvailable')}</p>
+                <p className="text-sm">{t('uploadMusic')}</p>
               </div>
             )}
             
             {musicList && musicList.length > 0 && (
-              <button className="w-full mt-4 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors">
-                View All Music ({musicList.length})
-              </button>
+              <div className="space-y-2 mt-4">
+                <Link to="/app/music">
+                  <button className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-secondary-700 transition-colors">
+                    {t('viewAllMusic')} ({musicList.length})
+                  </button>
+                </Link>
+                <button 
+                  onClick={() => setShowMusicPlayer(true)}
+                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  {t('startMoodMusic')}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -271,24 +283,34 @@ export const DashboardPageFixed = memo(() => {
           <Link to="/app/prediction">
             <button className="w-full bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors">
               <Brain className="w-6 h-6 mx-auto mb-2" />
-              <p className="font-medium">Analyze Mood</p>
-              <p className="text-sm text-blue-100">Predict your emotional state</p>
+              <p className="font-medium">{t('analyzeMoodAction')}</p>
+              <p className="text-sm text-blue-100">{t('predictEmotionalState')}</p>
             </button>
           </Link>
           
-          <button className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 transition-colors">
-            <Music className="w-6 h-6 mx-auto mb-2" />
-            <p className="font-medium">Browse Music</p>
-            <p className="text-sm text-purple-100">Discover therapeutic music</p>
-          </button>
+          <Link to="/app/music">
+            <button className="w-full bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 transition-colors">
+              <Music className="w-6 h-6 mx-auto mb-2" />
+              <p className="font-medium">{t('browseMusic')}</p>
+              <p className="text-sm text-purple-100">{t('discoverMusic')}</p>
+            </button>
+          </Link>
           
-          <button className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors">
-            <TrendingUp className="w-6 h-6 mx-auto mb-2" />
-            <p className="font-medium">View History</p>
-            <p className="text-sm text-green-100">Track your progress</p>
-          </button>
+          <Link to="/app/history">
+            <button className="w-full bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors">
+              <TrendingUp className="w-6 h-6 mx-auto mb-2" />
+              <p className="font-medium">{t('viewHistory')}</p>
+              <p className="text-sm text-green-100">{t('trackProgress')}</p>
+            </button>
+          </Link>
         </div>
       </main>
+
+      {/* Floating Music Player */}
+      <FloatingMusicPlayer
+        isVisible={showMusicPlayer}
+        onClose={() => setShowMusicPlayer(false)}
+      />
     </div>
   )
 })
