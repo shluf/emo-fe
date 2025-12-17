@@ -205,7 +205,7 @@ export const PredictionPageFixed = memo(() => {
                 className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mr-4"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                {t('backToDashboard')}
+                {/* {t('backToDashboard')} */}
               </Link>
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">

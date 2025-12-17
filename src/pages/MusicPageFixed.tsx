@@ -33,11 +33,20 @@ interface MusicItem {
   created_at: string
 }
 
+interface EmotionLabel {
+  id: number
+  name: string
+  description: string
+  color: string
+  created_at: string
+}
+
 interface UploadFormData {
   title: string
   artist: string
   genre: string
   file: File | null
+  emotionLabelIds: number[]
 }
 
 export const MusicPageFixed = memo(() => {
@@ -59,7 +68,8 @@ export const MusicPageFixed = memo(() => {
     title: '',
     artist: '',
     genre: '',
-    file: null
+    file: null,
+    emotionLabelIds: []
   })
 
   // Fetch music list
@@ -67,6 +77,15 @@ export const MusicPageFixed = memo(() => {
     queryKey: ['music-list'],
     queryFn: async () => {
       const response = await api.get<MusicItem[]>('/music/')
+      return response.data
+    },
+  })
+
+  // Fetch emotion labels
+  const { data: emotionLabels } = useQuery({
+    queryKey: ['emotion-labels'],
+    queryFn: async () => {
+      const response = await api.get<EmotionLabel[]>('/emotion-labels/')
       return response.data
     },
   })
@@ -83,8 +102,9 @@ export const MusicPageFixed = memo(() => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['music-list'] })
+      queryClient.invalidateQueries({ queryKey: ['mood-music'] })
       setShowUploadForm(false)
-      setUploadForm({ title: '', artist: '', genre: '', file: null })
+      setUploadForm({ title: '', artist: '', genre: '', file: null, emotionLabelIds: [] })
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -176,6 +196,11 @@ export const MusicPageFixed = memo(() => {
     formData.append('artist', uploadForm.artist)
     formData.append('genre', uploadForm.genre)
     formData.append('file', uploadForm.file)
+    
+    // Add emotion label IDs as comma-separated string
+    if (uploadForm.emotionLabelIds.length > 0) {
+      formData.append('emotion_label_ids', uploadForm.emotionLabelIds.join(','))
+    }
 
     uploadMutation.mutate(formData)
   }
@@ -183,6 +208,28 @@ export const MusicPageFixed = memo(() => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
     setUploadForm(prev => ({ ...prev, file }))
+  }
+
+  const toggleEmotionLabel = (labelId: number) => {
+    setUploadForm(prev => ({
+      ...prev,
+      emotionLabelIds: prev.emotionLabelIds.includes(labelId)
+        ? prev.emotionLabelIds.filter(id => id !== labelId)
+        : [...prev.emotionLabelIds, labelId]
+    }))
+  }
+
+  const getEmotionLabelColor = (color: string) => {
+    const colorMap: Record<string, string> = {
+      'happy': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      'sad': 'bg-blue-100 text-blue-800 border-blue-300',
+      'angry': 'bg-red-100 text-red-800 border-red-300',
+      'fear': 'bg-purple-100 text-purple-800 border-purple-300',
+      'surprise': 'bg-green-100 text-green-800 border-green-300',
+      'disgust': 'bg-orange-100 text-orange-800 border-orange-300',
+      'neutral': 'bg-gray-100 text-gray-800 border-gray-300'
+    }
+    return colorMap[color.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-300'
   }
 
   return (
@@ -266,6 +313,34 @@ export const MusicPageFixed = memo(() => {
                 value={uploadForm.genre}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, genre: e.target.value }))}
               />
+              
+              {/* Emotion Labels Selection */}
+              {emotionLabels && emotionLabels.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('emotionLabels')}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {emotionLabels.map((label) => (
+                      <button
+                        key={label.id}
+                        type="button"
+                        onClick={() => toggleEmotionLabel(label.id)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                          uploadForm.emotionLabelIds.includes(label.id)
+                            ? `${getEmotionLabelColor(label.name)} border-current`
+                            : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {label.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {t('selectEmotionLabelsHelp')}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('musicFile')}
@@ -418,11 +493,21 @@ export const MusicPageFixed = memo(() => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      {music.genre && (
-                        <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-sm rounded-full">
-                          {music.genre}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {music.genre && (
+                          <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-sm rounded-full">
+                            {music.genre}
+                          </span>
+                        )}
+                        {(music as any).emotion_labels?.map((label: EmotionLabel) => (
+                          <span
+                            key={label.id}
+                            className={`px-2 py-1 text-xs rounded-full border ${getEmotionLabelColor(label.name)}`}
+                          >
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"

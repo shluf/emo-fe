@@ -8,12 +8,20 @@ import {
   Volume2, 
   VolumeX,
   Music,
-  X,
+  ChevronDown,
   Minimize2,
   Maximize2
 } from 'lucide-react'
 import { useTranslation } from '../../utils/translations'
 import api from '../../lib/api'
+
+interface EmotionLabel {
+  id: number
+  name: string
+  description: string
+  color: string
+  created_at: string
+}
 
 interface MusicItem {
   id: number
@@ -24,6 +32,7 @@ interface MusicItem {
   file_path: string
   uploaded_by: number
   created_at: string
+  emotion_labels?: EmotionLabel[]
 }
 
 interface PredictionHistory {
@@ -69,34 +78,48 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
     },
   })
 
-  // Fetch music based on mood
+  // Fetch music based on mood using emotion labels
   const { data: musicList } = useQuery({
     queryKey: ['mood-music', todaysMood],
     queryFn: async () => {
       const response = await api.get<MusicItem[]>('/music/')
       const allMusic = response.data
       
-      // Filter music based on mood (you can enhance this logic)
-      const moodMusicMap: Record<string, string[]> = {
-        happy: ['pop', 'upbeat', 'energetic', 'dance'],
-        sad: ['ballad', 'slow', 'melancholy', 'acoustic'],
-        angry: ['rock', 'metal', 'intense', 'aggressive'],
-        fear: ['ambient', 'calm', 'soothing', 'peaceful'],
-        surprise: ['electronic', 'experimental', 'unique'],
-        disgust: ['alternative', 'indie', 'different'],
-        neutral: ['chill', 'lounge', 'background', 'easy listening']
+      if (!todaysMood || todaysMood === 'neutral') {
+        return allMusic
       }
       
-      const moodGenres = moodMusicMap[todaysMood || 'neutral'] || []
+      // First, try to find music with matching emotion labels
+      const musicWithEmotionLabels = allMusic.filter(music => 
+        music.emotion_labels?.some(label => 
+          label.name.toLowerCase() === todaysMood.toLowerCase()
+        )
+      )
       
-      // Filter music by genre matching mood, fallback to all music
-      const filteredMusic = allMusic.filter(music => 
+      if (musicWithEmotionLabels.length > 0) {
+        return musicWithEmotionLabels
+      }
+      
+      // Fallback to genre-based filtering if no emotion labels match
+      const moodGenreMap: Record<string, string[]> = {
+        happy: ['pop', 'upbeat', 'energetic', 'dance', 'cheerful'],
+        sad: ['ballad', 'slow', 'melancholy', 'acoustic', 'blues'],
+        angry: ['rock', 'metal', 'intense', 'aggressive', 'punk'],
+        fear: ['ambient', 'calm', 'soothing', 'peaceful', 'meditation'],
+        surprise: ['electronic', 'experimental', 'unique', 'jazz'],
+        disgust: ['alternative', 'indie', 'different', 'grunge'],
+        neutral: ['chill', 'lounge', 'background', 'easy listening', 'instrumental']
+      }
+      
+      const moodGenres = moodGenreMap[todaysMood] || []
+      
+      const genreFilteredMusic = allMusic.filter(music => 
         moodGenres.some(genre => 
           music.genre?.toLowerCase().includes(genre.toLowerCase())
         )
       )
       
-      return filteredMusic.length > 0 ? filteredMusic : allMusic
+      return genreFilteredMusic.length > 0 ? genreFilteredMusic : allMusic
     },
     enabled: !!todaysMood,
   })
@@ -127,22 +150,61 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
     }
   }, [currentTrack, volume, isMuted, isPlaying])
 
-  // Handle time updates
+  // Handle time updates and sync progress bar
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    const updateTime = () => setCurrentTime(audio.currentTime)
-    const updateDuration = () => setDuration(audio.duration)
+    const updateTime = () => {
+      setCurrentTime(audio.currentTime)
+    }
+    
+    const updateDuration = () => {
+      setDuration(audio.duration || 0)
+    }
 
+    const handleLoadedData = () => {
+      setDuration(audio.duration || 0)
+    }
+
+    const handleCanPlay = () => {
+      setDuration(audio.duration || 0)
+    }
+
+    // Add multiple event listeners for better synchronization
     audio.addEventListener('timeupdate', updateTime)
     audio.addEventListener('loadedmetadata', updateDuration)
+    audio.addEventListener('loadeddata', handleLoadedData)
+    audio.addEventListener('canplay', handleCanPlay)
+    audio.addEventListener('durationchange', updateDuration)
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime)
       audio.removeEventListener('loadedmetadata', updateDuration)
+      audio.removeEventListener('loadeddata', handleLoadedData)
+      audio.removeEventListener('canplay', handleCanPlay)
+      audio.removeEventListener('durationchange', updateDuration)
     }
   }, [currentTrack])
+
+  // Additional effect to ensure progress bar updates during playback
+  useEffect(() => {
+    let intervalId: number | null = null
+    
+    if (isPlaying && audioRef.current) {
+      intervalId = window.setInterval(() => {
+        if (audioRef.current && !audioRef.current.paused) {
+          setCurrentTime(audioRef.current.currentTime)
+        }
+      }, 100) // Update every 100ms for smooth progress
+    }
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [isPlaying])
 
   const handlePlay = async () => {
     if (audioRef.current) {
@@ -193,13 +255,14 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseFloat(e.target.value)
-    setCurrentTime(newTime)
-    if (audioRef.current) {
+    if (audioRef.current && !isNaN(newTime) && isFinite(newTime)) {
       audioRef.current.currentTime = newTime
+      setCurrentTime(newTime)
     }
   }
 
   const formatTime = (time: number) => {
+    if (!time || isNaN(time) || !isFinite(time)) return '0:00'
     const minutes = Math.floor(time / 60)
     const seconds = Math.floor(time % 60)
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
@@ -221,9 +284,34 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
   if (!isVisible || !currentTrack) return null
 
   return (
-    <div className={`fixed bottom-4 right-4 bg-white dark:bg-secondary-800 rounded-xl shadow-2xl border border-secondary-200 dark:border-secondary-700 z-50 transition-all duration-300 ${
-      isMinimized ? 'w-80 h-16' : 'w-80 h-48'
-    }`}>
+    <>
+      <style>{`
+        .volume-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #3b82f6;
+          border: 2px solid #ffffff;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .volume-slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #3b82f6;
+          border: 2px solid #ffffff;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .volume-slider {
+          background: linear-gradient(to right, #3b82f6 0%, #3b82f6 var(--volume-percent, 70%), #e5e7eb var(--volume-percent, 70%), #e5e7eb 100%);
+        }
+      `}</style>
+      <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white dark:bg-secondary-800 rounded-xl shadow-2xl border border-secondary-200 dark:border-secondary-700 z-50 transition-all duration-300 ${
+        isMinimized ? 'w-80 h-16' : 'w-96 h-52'
+      }`}>
       {/* Mood indicator gradient */}
       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${getMoodColor(todaysMood || 'neutral')} rounded-t-xl`} />
       
@@ -254,7 +342,7 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
               onClick={onClose}
               className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-secondary-700 transition-colors"
             >
-              <X className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-300" />
             </button>
           </div>
         </div>
@@ -262,60 +350,77 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
         {!isMinimized && (
           <>
             {/* Track Info */}
-            <div className="mb-3">
-              <p className="font-medium text-gray-900 dark:text-white truncate text-sm">
+            <div className="mb-4 text-center">
+              <p className="font-semibold text-gray-900 dark:text-white truncate text-base">
                 {currentTrack.title}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+              <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
                 {currentTrack.artist}
               </p>
+              {/* <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                {currentTrack.genre}
+              </p> */}
             </div>
 
             {/* Progress Bar */}
-            <div className="mb-3">
-              <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                <span className="w-8">{formatTime(currentTime)}</span>
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 0}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  className="flex-1 h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="w-8">{formatTime(duration)}</span>
+            <div className="mb-4">
+              <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
+                <span className="w-10 text-right">{formatTime(currentTime)}</span>
+                <div className="flex-1 relative">
+                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-100 ease-out"
+                      style={{ 
+                        width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` 
+                      }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 0}
+                    value={currentTime || 0}
+                    onChange={handleSeek}
+                    className="absolute inset-0 w-full h-2 opacity-0 cursor-pointer"
+                  />
+                </div>
+                <span className="w-10 text-left">{formatTime(duration)}</span>
               </div>
             </div>
           </>
         )}
 
         {/* Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handlePrevious}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-secondary-700 transition-colors"
-            >
-              <SkipBack className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-            </button>
+        <div className={`flex items-center ${isMinimized ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center space-x-3">
+            {!isMinimized && (
+              <button
+                onClick={handlePrevious}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-secondary-700 transition-colors"
+              >
+                <SkipBack className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </button>
+            )}
             
             <button
               onClick={isPlaying ? handlePause : handlePlay}
-              className={`w-8 h-8 bg-gradient-to-r ${getMoodColor(todaysMood || 'neutral')} rounded-full flex items-center justify-center text-white transition-colors`}
+              className={`${isMinimized ? 'w-10 h-10' : 'w-12 h-12'} bg-gradient-to-r ${getMoodColor(todaysMood || 'neutral')} rounded-full flex items-center justify-center text-white transition-all hover:scale-105 shadow-lg`}
             >
               {isPlaying ? (
-                <Pause className="w-4 h-4" />
+                <Pause className={`${isMinimized ? 'w-4 h-4' : 'w-6 h-6'}`} />
               ) : (
-                <Play className="w-4 h-4 ml-0.5" />
+                <Play className={`${isMinimized ? 'w-4 h-4 ml-0.5' : 'w-6 h-6 ml-0.5'}`} />
               )}
             </button>
             
-            <button
-              onClick={handleNext}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-secondary-700 transition-colors"
-            >
-              <SkipForward className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-            </button>
+            {!isMinimized && (
+              <button
+                onClick={handleNext}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-secondary-700 transition-colors"
+              >
+                <SkipForward className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              </button>
+            )}
           </div>
 
           {!isMinimized && (
@@ -338,7 +443,10 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
                 step="0.1"
                 value={volume}
                 onChange={handleVolumeChange}
-                className="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer volume-slider"
+                style={{
+                  '--volume-percent': `${volume * 100}%`
+                } as React.CSSProperties}
               />
             </div>
           )}
@@ -354,7 +462,8 @@ export const FloatingMusicPlayer = memo<FloatingMusicPlayerProps>(({
           setIsPlaying(false)
         }}
       />
-    </div>
+      </div>
+    </>
   )
 })
 

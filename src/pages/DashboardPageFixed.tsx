@@ -1,7 +1,7 @@
 import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Brain, Music, TrendingUp, LogOut, Users } from 'lucide-react'
+import { Brain, Music, TrendingUp, LogOut, Users, Play } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
@@ -62,6 +62,62 @@ export const DashboardPageFixed = memo(() => {
     },
   })
 
+  // Get today's mood to determine card color
+  const { data: todaysMood } = useQuery({
+    queryKey: ['todays-mood'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const response = await api.get<PredictionHistory[]>(`/predict/history?date_start=${today}&date_end=${today}`)
+      const todaysAnalyses = response.data
+      
+      if (todaysAnalyses.length === 0) return null
+      
+      // Get the most recent mood of today
+      const latestMood = todaysAnalyses[todaysAnalyses.length - 1]
+      return {
+        mood: latestMood.prediction.toLowerCase(),
+        count: todaysAnalyses.length,
+        lastAnalysis: latestMood.created_at
+      }
+    },
+  })
+
+  // Helper function to get mood-based gradient colors
+  const getMoodGradient = (mood: string | null) => {
+    if (!mood) return 'from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600'
+    
+    const gradients: Record<string, string> = {
+      happy: 'from-yellow-500 to-orange-500 dark:from-yellow-400 dark:to-orange-400',
+      sad: 'from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500',
+      angry: 'from-red-500 to-pink-500 dark:from-red-400 dark:to-pink-400',
+      fear: 'from-purple-600 to-violet-600 dark:from-purple-500 dark:to-violet-500',
+      surprise: 'from-green-500 to-teal-500 dark:from-green-400 dark:to-teal-400',
+      disgust: 'from-orange-600 to-red-500 dark:from-orange-500 dark:to-red-400',
+      neutral: 'from-gray-600 to-slate-600 dark:from-gray-500 dark:to-slate-500'
+    }
+    
+    return gradients[mood] || 'from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600'
+  }
+
+  // Helper function to get mood emoji
+  const getMoodEmoji = (mood: string | null) => {
+    if (!mood) return '🧠'
+    
+    const emojis: Record<string, string> = {
+      happy: '😊',
+      sad: '😢',
+      angry: '😠',
+      fear: '😰',
+      surprise: '😲',
+      disgust: '🤢',
+      neutral: '😐'
+    }
+    
+    return emojis[mood] || '🧠'
+  }
+
+
+
   // Calculate statistics from prediction history
   const stats = {
     totalPredictions: predictionHistory?.length || 0,
@@ -119,18 +175,59 @@ export const DashboardPageFixed = memo(() => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-xl p-6 text-white mb-8">
-          <h1 className="text-2xl font-bold mb-2">
-            {t('welcomeBackUser', { name: user?.name || 'User' })}
-          </h1>
-          <p className="text-blue-100 mb-4">
-            {t('howAreYouFeeling')}
-          </p>
-          <Link to="/app/prediction">
-            <button className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors">
-              {t('analyzeMood')}
-            </button>
-          </Link>
+        <div className={`bg-gradient-to-r ${getMoodGradient(todaysMood?.mood || null)} rounded-xl p-6 text-white mb-8 transition-all duration-500`}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-2">
+                <h1 className="text-2xl font-bold">
+                  {t('welcomeBackUser', { name: user?.name || 'User' })}
+                </h1>
+                {todaysMood?.mood && (
+                  <span className="ml-3 text-2xl">
+                    {getMoodEmoji(todaysMood.mood)}
+                  </span>
+                )}
+              </div>
+              
+              {/* Mood Information */}
+              {todaysMood?.mood ? (
+                <div className="mb-4">
+                  <p className="text-white/90 mb-1">
+                    {t('currentMood')}: <span className="font-semibold capitalize">{todaysMood.mood}</span>
+                  </p>
+                  <p className="text-white/75 text-sm">
+                    {t('analysesToday')}: {todaysMood.count} • {t('lastUpdate')}: {new Date(todaysMood.lastAnalysis).toLocaleTimeString()}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-white/90 mb-4">
+                  {t('howAreYouFeeling')}
+                </p>
+              )}
+              
+              <Link to="/app/prediction">
+                <button className="bg-white/20 backdrop-blur-sm text-white border border-white/30 px-6 py-2 rounded-lg font-medium hover:bg-white/30 transition-colors">
+                  {todaysMood?.mood ? t('updateMood') : t('analyzeMood')}
+                </button>
+              </Link>
+            </div>
+            
+            {/* Mood Music Button */}
+            {musicList && musicList.length > 0 && (
+              <div className="ml-6">
+                <button 
+                  onClick={() => setShowMusicPlayer(true)}
+                  className="w-16 h-16 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors group backdrop-blur-sm border border-white/30"
+                  title={t('startMoodMusic')}
+                >
+                  <Play className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
+                </button>
+                <p className="text-xs text-white/75 text-center mt-2">
+                  {t('moodMusic')}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -261,18 +358,12 @@ export const DashboardPageFixed = memo(() => {
             )}
             
             {musicList && musicList.length > 0 && (
-              <div className="space-y-2 mt-4">
+              <div className="mt-4">
                 <Link to="/app/music">
                   <button className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50 dark:hover:bg-secondary-700 transition-colors">
                     {t('viewAllMusic')} ({musicList.length})
                   </button>
                 </Link>
-                <button 
-                  onClick={() => setShowMusicPlayer(true)}
-                  className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  {t('startMoodMusic')}
-                </button>
               </div>
             )}
           </div>

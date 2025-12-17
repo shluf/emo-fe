@@ -115,13 +115,16 @@ export const HistoryPageFixed = memo(() => {
   // Get emotion color for charts
   const getEmotionChartColor = (emotion: string) => {
     const colors: Record<string, string> = {
-      happy: '#eab308',
-      sad: '#3b82f6',
-      angry: '#ef4444',
-      fear: '#8b5cf6',
-      surprise: '#10b981',
-      disgust: '#f97316',
-      neutral: '#6b7280'
+      happy: '#fbbf24',      // Bright yellow
+      sad: '#3b82f6',        // Blue
+      angry: '#ef4444',      // Red
+      fear: '#8b5cf6',       // Purple
+      surprise: '#10b981',   // Green
+      disgust: '#f97316',    // Orange
+      neutral: '#6b7280',    // Gray
+      joy: '#fbbf24',        // Same as happy
+      sadness: '#3b82f6',    // Same as sad
+      anger: '#ef4444'       // Same as angry
     }
     return colors[emotion.toLowerCase()] || '#6b7280'
   }
@@ -185,28 +188,34 @@ export const HistoryPageFixed = memo(() => {
   // Get emotion color for UI elements
   const getEmotionColor = (emotion: string) => {
     const colors: Record<string, string> = {
-      happy: 'bg-yellow-500',
-      sad: 'bg-blue-500',
-      angry: 'bg-red-500',
-      fear: 'bg-purple-500',
-      surprise: 'bg-green-500',
-      disgust: 'bg-orange-500',
-      neutral: 'bg-gray-500'
+      happy: 'bg-gradient-to-r from-yellow-400 to-yellow-500',
+      sad: 'bg-gradient-to-r from-blue-400 to-blue-500',
+      angry: 'bg-gradient-to-r from-red-400 to-red-500',
+      fear: 'bg-gradient-to-r from-purple-400 to-purple-500',
+      surprise: 'bg-gradient-to-r from-green-400 to-green-500',
+      disgust: 'bg-gradient-to-r from-orange-400 to-orange-500',
+      neutral: 'bg-gradient-to-r from-gray-400 to-gray-500',
+      joy: 'bg-gradient-to-r from-yellow-400 to-yellow-500',
+      sadness: 'bg-gradient-to-r from-blue-400 to-blue-500',
+      anger: 'bg-gradient-to-r from-red-400 to-red-500'
     }
-    return colors[emotion.toLowerCase()] || 'bg-gray-400'
+    return colors[emotion.toLowerCase()] || 'bg-gradient-to-r from-gray-400 to-gray-500'
   }
 
   const getEmotionTextColor = (emotion: string) => {
     const colors: Record<string, string> = {
-      happy: 'text-yellow-600 dark:text-yellow-400',
-      sad: 'text-blue-600 dark:text-blue-400',
-      angry: 'text-red-600 dark:text-red-400',
-      fear: 'text-purple-600 dark:text-purple-400',
-      surprise: 'text-green-600 dark:text-green-400',
-      disgust: 'text-orange-600 dark:text-orange-400',
-      neutral: 'text-gray-600 dark:text-gray-400'
+      happy: 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
+      sad: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+      angry: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20',
+      fear: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20',
+      surprise: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20',
+      disgust: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20',
+      neutral: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20',
+      joy: 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20',
+      sadness: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+      anger: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
     }
-    return colors[emotion.toLowerCase()] || 'text-gray-600 dark:text-gray-400'
+    return colors[emotion.toLowerCase()] || 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20'
   }
 
   // Filter history by selected emotion
@@ -238,7 +247,7 @@ export const HistoryPageFixed = memo(() => {
                 className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mr-4"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                {t('backToDashboard')}
+                {/* {t('backToDashboard')} */}
               </Link>
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
@@ -498,9 +507,9 @@ export const HistoryPageFixed = memo(() => {
                           {stat.count} ({stat.percentage}%)
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div
-                          className={`h-2 rounded-full ${getEmotionColor(stat.emotion)}`}
+                          className={`h-3 rounded-full ${getEmotionColor(stat.emotion)}`}
                           style={{ width: `${stat.percentage}%` }}
                         />
                       </div>

@@ -40,9 +40,12 @@ export interface Music {
   id: number
   title: string
   artist: string
-  url: string
-  emotion: string
+  genre: string
+  file_name: string
+  file_path: string
+  uploaded_by: number
   created_at: string
+  emotion_labels?: EmotionLabel[]
 }
 
 export interface MusicResponse {
